@@ -1,0 +1,31 @@
+FROM python:3.12-slim
+
+ARG VORTEX_VERSION=0.86.1
+ARG LANCE_VERSION=12.0.0
+ARG PYARROW_VERSION=25.0.1
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Integrity checks use only published binary wheels: no Rust/C++ source builds.
+RUN python -m pip install --no-cache-dir --only-binary=:all: \
+        "vortex-data==${VORTEX_VERSION}" \
+        "pylance==${LANCE_VERSION}" \
+        "pyarrow==${PYARROW_VERSION}"
+
+COPY scripts/integrity_validator.py /app/integrity_validator.py
+
+ENV PARQUET_INPUT_DIR=/data/parquet/batches/zstd \
+    VORTEX_INPUT_DIR=/data/vortex/batches \
+    LANCE_INPUT_DIR=/data/lance/batches \
+    VALIDATION_OUTPUT_DIR=/data/validation \
+    BATCHES=250 \
+    ROWS_PER_BATCH=1000000 \
+    READ_BATCH_SIZE=65536 \
+    FAIL_FAST=false \
+    VORTEX_MAX_THREADS=
+
+ENTRYPOINT ["python", "/app/integrity_validator.py"]

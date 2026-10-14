@@ -1,0 +1,33 @@
+FROM python:3.12-slim
+
+ARG VORTEX_VERSION=0.86.1
+ARG LANCE_VERSION=12.0.0
+ARG PYARROW_VERSION=25.0.1
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN python -m pip install --no-cache-dir --only-binary=:all: \
+        "vortex-data==${VORTEX_VERSION}" \
+        "pylance==${LANCE_VERSION}" \
+        "pyarrow==${PYARROW_VERSION}"
+
+COPY scripts/benchmark_runner.py /app/benchmark_runner.py
+
+ENV BATCHES=250 \
+    ROWS_PER_BATCH=1000000 \
+    READ_BATCH_SIZE=65536 \
+    WARMUP=1 \
+    RUNS=0 \
+    BENCH_THREADS= \
+    BENCH_FORMATS=parquet,vortex,lance \
+    CASE=all \
+    POINTS=128 \
+    SINGLE_BATCH=125 \
+    PARQUET_CODEC_DIR=zstd \
+    VALIDATION_REPORT=/data/validation/integrity-report.json
+
+ENTRYPOINT ["python", "/app/benchmark_runner.py"]

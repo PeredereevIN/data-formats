@@ -1,0 +1,14 @@
+.git
+.gitignore
+build
+cmake-build-*
+__pycache__
+*.py[cod]
+data/parquet/*
+data/vortex/*
+data/lance/*
+data/validation/*
+*.parquet
+*.vortex
+data/benchmark/*
+data/analysis/*

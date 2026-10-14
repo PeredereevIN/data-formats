@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    MPLCONFIGDIR=/tmp/matplotlib
+
+WORKDIR /app
+
+COPY analysis/requirements.txt /app/requirements.txt
+RUN python -m pip install --no-cache-dir --only-binary=:all: -r /app/requirements.txt
+
+COPY analysis/analyze_benchmark.py /app/analyze_benchmark.py
+
+ENV BENCHMARK_INPUT=/data/benchmark/benchmark.json \
+    ANALYSIS_OUTPUT=/data/analysis
+
+ENTRYPOINT ["python", "/app/analyze_benchmark.py"]

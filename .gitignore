@@ -1,0 +1,33 @@
+# CMake / build
+/build/
+/cmake-build-/
+/.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Generated datasets and reports
+/data/*
+!/data/parquet/
+!/data/vortex/
+!/data/lance/
+!/data/validation/
+!/data/parquet/.gitkeep
+!/data/vortex/.gitkeep
+!/data/lance/.gitkeep
+!/data/validation/.gitkeep
+!/data/benchmark/
+!/data/analysis/
+!/data/benchmark/.gitkeep
+!/data/analysis/.gitkeep
+
+# Local environment
+.env
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+

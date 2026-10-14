@@ -1,0 +1,30 @@
+FROM python:3.12-slim
+
+ARG LANCE_VERSION=12.0.0
+ARG PYARROW_VERSION=25.0.1
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Prebuilt wheels only: do not build Lance/Rust inside this benchmark image.
+RUN python -m pip install --no-cache-dir --only-binary=:all: \
+        "pylance==${LANCE_VERSION}" \
+        "pyarrow==${PYARROW_VERSION}"
+
+COPY scripts/lance_converter.py /app/lance_converter.py
+
+ENV PARQUET_INPUT_DIR=/data/parquet/batches/zstd \
+    LANCE_OUTPUT_DIR=/data/lance/batches \
+    BATCHES=250 \
+    ROWS_PER_BATCH=1000000 \
+    READ_BATCH_SIZE=65536 \
+    LANCE_MAX_ROWS_PER_GROUP=128000 \
+    LANCE_MAX_ROWS_PER_FILE=1000000 \
+    LANCE_STORAGE_VERSION=2.2 \
+    LANCE_OVERWRITE=true \
+    LANCE_VALIDATE=true
+
+ENTRYPOINT ["python", "/app/lance_converter.py"]

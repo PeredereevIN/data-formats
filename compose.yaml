@@ -1,0 +1,138 @@
+services:
+  parquet-generator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.parquet
+      target: runtime
+    image: parquet-format-study:local
+    environment:
+      BATCHES: ${BATCHES:-250}
+      ROWS_PER_BATCH: ${ROWS_PER_BATCH:-1000000}
+      ROW_GROUP_SIZE: ${ROW_GROUP_SIZE:-128000}
+      CODEC: ${CODEC:-zstd}
+      ZSTD_LEVEL: ${ZSTD_LEVEL:-3}
+      BROTLI_LEVEL: ${BROTLI_LEVEL:-5}
+      GZIP_LEVEL: ${GZIP_LEVEL:-6}
+      GENERATE_ALL: ${GENERATE_ALL:-false}
+      DATA_PROFILE: ${DATA_PROFILE:-mixed_v2}
+      MODE: ${MODE:-generate}
+      DEEP_VALIDATE: ${DEEP_VALIDATE:-false}
+      OUTPUT_DIR: /data/parquet/batches
+    volumes:
+      - ./data/parquet:/data/parquet
+    init: true
+
+  vortex-converter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.vortex
+      args:
+        VORTEX_VERSION: ${VORTEX_VERSION:-0.86.1}
+        PYARROW_VERSION: ${PYARROW_VERSION:-25.0.1}
+    image: parquet-format-study:vortex-python
+    environment:
+      BATCHES: ${BATCHES:-250}
+      ROWS_PER_BATCH: ${ROWS_PER_BATCH:-1000000}
+      READ_BATCH_SIZE: ${READ_BATCH_SIZE:-65536}
+      VORTEX_STRATEGY: ${VORTEX_STRATEGY:-btrblocks}
+      VORTEX_MAX_THREADS: ${VORTEX_MAX_THREADS:-}
+      VORTEX_OVERWRITE: ${VORTEX_OVERWRITE:-true}
+      VORTEX_VALIDATE: ${VORTEX_VALIDATE:-true}
+      CONVERTER_WORKERS: ${CONVERTER_WORKERS:-2}
+      PARQUET_INPUT_DIR: /data/parquet/batches/zstd
+      VORTEX_OUTPUT_DIR: /data/vortex/batches
+    volumes:
+      - ./data/parquet:/data/parquet:ro
+      - ./data/vortex:/data/vortex
+    init: true
+
+  lance-converter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.lance
+      args:
+        LANCE_VERSION: ${LANCE_VERSION:-12.0.0}
+        PYARROW_VERSION: ${PYARROW_VERSION:-25.0.1}
+    image: parquet-format-study:lance-python
+    environment:
+      BATCHES: ${BATCHES:-250}
+      ROWS_PER_BATCH: ${ROWS_PER_BATCH:-1000000}
+      READ_BATCH_SIZE: ${READ_BATCH_SIZE:-65536}
+      LANCE_MAX_ROWS_PER_GROUP: ${LANCE_MAX_ROWS_PER_GROUP:-128000}
+      LANCE_MAX_ROWS_PER_FILE: ${LANCE_MAX_ROWS_PER_FILE:-1000000}
+      LANCE_STORAGE_VERSION: ${LANCE_STORAGE_VERSION:-2.2}
+      LANCE_OVERWRITE: ${LANCE_OVERWRITE:-true}
+      LANCE_VALIDATE: ${LANCE_VALIDATE:-true}
+      CONVERTER_WORKERS: ${CONVERTER_WORKERS:-2}
+      PARQUET_INPUT_DIR: /data/parquet/batches/zstd
+      LANCE_OUTPUT_DIR: /data/lance/batches
+    volumes:
+      - ./data/parquet:/data/parquet:ro
+      - ./data/lance:/data/lance
+    init: true
+
+  integrity-validator:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.integrity
+      args:
+        VORTEX_VERSION: ${VORTEX_VERSION:-0.86.1}
+        LANCE_VERSION: ${LANCE_VERSION:-12.0.0}
+        PYARROW_VERSION: ${PYARROW_VERSION:-25.0.1}
+    image: parquet-format-study:integrity
+    environment:
+      BATCHES: ${BATCHES:-250}
+      ROWS_PER_BATCH: ${ROWS_PER_BATCH:-1000000}
+      READ_BATCH_SIZE: ${READ_BATCH_SIZE:-65536}
+      FAIL_FAST: ${FAIL_FAST:-false}
+      VORTEX_MAX_THREADS: ${VORTEX_MAX_THREADS:-}
+      PARQUET_INPUT_DIR: /data/parquet/batches/zstd
+      VORTEX_INPUT_DIR: /data/vortex/batches
+      LANCE_INPUT_DIR: /data/lance/batches
+      VALIDATION_OUTPUT_DIR: /data/validation
+    volumes:
+      - ./data/parquet:/data/parquet:ro
+      - ./data/vortex:/data/vortex:ro
+      - ./data/lance:/data/lance:ro
+      - ./data/validation:/data/validation
+    init: true
+
+  benchmark:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.benchmark
+      args:
+        VORTEX_VERSION: ${VORTEX_VERSION:-0.86.1}
+        LANCE_VERSION: ${LANCE_VERSION:-12.0.0}
+        PYARROW_VERSION: ${PYARROW_VERSION:-25.0.1}
+    image: parquet-format-study:benchmark
+    environment:
+      BATCHES: ${BATCHES:-250}
+      ROWS_PER_BATCH: ${ROWS_PER_BATCH:-1000000}
+      READ_BATCH_SIZE: ${READ_BATCH_SIZE:-65536}
+      WARMUP: ${WARMUP:-1}
+      RUNS: ${RUNS:-0}
+      BENCH_THREADS: ${BENCH_THREADS:-}
+      BENCH_FORMATS: ${BENCH_FORMATS:-parquet,vortex,lance}
+      CASE: ${CASE:-all}
+      POINTS: ${POINTS:-128}
+      SINGLE_BATCH: ${SINGLE_BATCH:-125}
+      PARQUET_CODEC_DIR: ${PARQUET_CODEC_DIR:-zstd}
+      VALIDATION_REPORT: /data/validation/integrity-report.json
+      LANCE_LOG: ${LANCE_LOG:-warn}
+    volumes:
+      - ./data:/data
+    init: true
+
+  analytics:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.analytics
+    image: parquet-format-study:analytics
+    environment:
+      BENCHMARK_INPUT: ${BENCHMARK_INPUT:-/data/benchmark/benchmark.json}
+      ANALYSIS_OUTPUT: ${ANALYSIS_OUTPUT:-/data/analysis}
+    volumes:
+      - ./data/benchmark:/data/benchmark:ro
+      - ./data/analysis:/data/analysis
+    init: true
